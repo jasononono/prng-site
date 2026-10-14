@@ -14,9 +14,6 @@ also we couldn't afford any security because all of our budget evaporated overni
 
 here are the games you can play:
 /casino/spinner
-/casino/roulette
-/casino/prediction
-/casino/jackpot
 
 note: to access these links, you must provide a query parameter 'name' set to your username.
 
@@ -68,32 +65,38 @@ def spinner():
 		<button type="submit">spin the wheel</button>
 	</form>
 
+	<br/><br/>
+	<div style="font-size: 1.5em">
+	RESULT: <b id="result">-</b>
+	</div>
+
 	<script>
 		document.getElementById('bet').addEventListener('submit', async (e) => {
-		e.preventDefault();
-		
-		const amt = parseInt(document.getElementById('amt').value);
-		const start = parseInt(document.getElementById('start').value);
-		const result = document.getElementById('result');
+			e.preventDefault();
 
-		const response = await fetch('casino/spinner/spin?name={{ name }}', {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({amt: amt, start: start})
+			const amt = parseInt(document.getElementById('amt').value);
+			const start = parseInt(document.getElementById('start').value);
+			const result = document.getElementById('result');
+
+			const response = await fetch('/casino/spinner/spin?name={{ name }}', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({amt: amt, start: start})
+			});
+
+			const data = await response.json();
+
+			if (response.ok) {
+				document.getElementById('money').innerText = data.money;
+				result.textContent = data.result;
+			}
 		});
 
-		const data = await response.json();
-
-		if (response.ok) {
-			document.getElementById('money').innerText = data.money;
-			result.innerHTML = `idk lol`;
-		}
 	</script>
 </body>
 '''
-	if not request.args.get("name"):
-		return "missing username", 400, {"Content-Type": "text/plain"}
 	name = get_name()
+	if name is None: return "missing username", 400, {"Content-Type": "text/plain"}
 
 	return render_template_string(HTML, name=name, money=money[name])
 
@@ -103,11 +106,10 @@ def spinner_spin():
 
 	amt = data.get('amt')
 	start = data.get('start')
-	result = (start-1 + 13) % 32 + 1
+	result = (start-1 + 15) % 32 + 1
 
-	if not request.args.get("name"):
-		return "missing username", 400, {"Content-Type": "text/plain"}
 	name = get_name()
+	if name is None: return "missing username", 400, {"Content-Type": "text/plain"}
 
 	if result % 7 == 0:
 		money[name] += amt
@@ -115,7 +117,8 @@ def spinner_spin():
 		money[name] -= amt
 
 	return jsonify({
-		"money": money[name]
+		"money": money[name],
+		"result": result
 	})
 
 
@@ -201,9 +204,9 @@ def spinner_spin():
 # 		return "submission successful!", 200, {"Content-Type": "text/plain"}
 # 	return "submission unsuccessful :(", 401, {"Content-Type": "text/plain"}
 
-# @app.get("/ctf/leaderboard")
-# def leaderboard():
-# 	return f"LEADERBOARD:\n\n{'\n'.join([f'{idx}. {pair[0]} with {pair[1]} point(s)' for idx, pair in enumerate(sorted(leaderboard_dict.items(), key=lambda item: item[1], reverse=True))])}", 200, {"Content-Type": "text/plain"}
+@app.get("/casino/leaderboard")
+def leaderboard():
+	return f"LEADERBOARD:\n\n{'\n'.join([f'{idx}. {pair[0]} with {pair[1]} ananthcoins' for idx, pair in enumerate(sorted(money.items(), key=lambda item: item[1], reverse=True))])}", 200, {"Content-Type": "text/plain"}
 
 
 if __name__ == "__main__":

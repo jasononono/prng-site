@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body>
+	logged in as <b id="name">{{ name }}</b>
+	<br/>
+	your ananthcoins: $<b id="money">{{ money }}</b>
+	<br/><br/>
+
+	welcome to the roulette table! We've decided that instead of 1 ball, there are now 10.<br/>
+	If you can guess exactly how many balls land in red, your bet is doubled.<br/>
+	Otherwise, you lose the bet :(
+	<br/><br/>
+
+	<img src="{{ url_for('static', filename='roulette.png') }}" style="width: 400px; height: 400px;">
+
+	<br/>
+	<div style="font-size: 0.1em">
+		oh yea, i've heard that the prng algorithm goes something like<br/>
+		x ^= x << a <br/>
+		x ^= x >> b <br/>
+		x ^= x << c <br/>
+		
+		very useless fact righttt
+	</div>
+	
+	<br/><br/>
+
+	<form id="bet">
+		<label for="amt">Bet Amount ($0 ~ $100):</label>
+		<input type="number" id="amt" min="0" value="0" required><br>
+		<label for="red">Guess the number of red:</label>
+		<input type="number" id="red" min="0" max="10" value="1" required><br>
+
+		<button type="submit">drop the balls</button>
+	</form>
+
+	<br/><br/>
+
+	<div id="blah">
+		:3
+	</div>
+	<br/>
+
+	<div style="font-size: 1.5em">
+		RESULT: <b id="result">??</b>
+	</div>
+
+	<script>
+		var mny = {{ money }};
+
+		var arr = "";
+		var text = "";
+		for (let i = 0; i < 10; i++) {
+			if (Math.random() < 0.5) {
+				arr += '0';
+				text += "⬛ ";
+			} else {
+				arr += '1';
+				text += "🟥 ";
+			}
+		}
+		const blah = document.getElementById('blah');
+		blah.textContent = text;
+
+		document.getElementById('bet').addEventListener('submit', async (e) => {
+			e.preventDefault();
+
+			const amt = parseInt(document.getElementById('amt').value);
+			const red = parseInt(document.getElementById('red').value);
+			const result = document.getElementById('result');
+			const blah = document.getElementById('blah');
+
+			if (amt > mny) {
+				alert("yuo dont have enough money lol");
+				return;
+			}
+
+			const response = await fetch('/casino/roulette/spin?name={{ name }}', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({amt: amt, red: red, arr: arr})
+			});
+
+			const data = await response.json();
+
+			if (response.ok) {
+				document.getElementById('money').innerText = data.money;
+				mny = data.money;
+				arr = data.narr;
+				let ans = "";
+				for (let i = 0; i < 10; i++) {
+					if (arr[i] == 1) {
+						ans += "🟥 ";
+					} else {
+						ans += "⬛ ";
+					}
+			}
+				blah.textContent = ans;
+				result.textContent = data.res;
+			}
+		});
+
+	</script>
+</body>

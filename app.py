@@ -1,4 +1,5 @@
 from flask import Flask, send_file, request, render_template_string, jsonify
+import random
 
 app = Flask(__name__)
 
@@ -14,8 +15,12 @@ also we couldn't afford any security because all of our budget evaporated overni
 
 here are the games you can play:
 /casino/spinner
+/casino/prediction
+/casino/roulette
 
 note: to access these links, you must provide a query parameter 'name' set to your username.
+
+see /casino/leaderboard for uh, a leaderboard
 
 ''', 200, {"Content-Type": "text/plain"}
 
@@ -32,73 +37,11 @@ def get_name():
 
 @app.get("/casino/spinner")
 def spinner():
-	HTML = '''\
-<!DOCTYPE html>
-<html lang="en">
-<head>
-	<meta charset="UTF-8">
-	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-</head>
-<body>
-	logged in as <b id="name">{{ name }}</b>
-	<br/>
-	your ananthcoins: $<b id="money">{{ money }}</b>
-	<br/><br/>
-
-	welcome to the spinner! Pick a number between 1 and 32.<br/>
-	If the spinner lands on a multiple of 5, you get your money back.<br/>
-	If the spinner lands on a multiple of 7, you double your bet.
-	<br/><br/>
-
-	<img src="{{ url_for('static', filename='spinner.png') }}" style="width: 400px; height: 400px;">
-
-	<br/>
-	also, the PRNG may or may not be poorly implemented...
-	<br/><br/>
-
-	<form id="bet">
-		<label for="amt">Bet Amount ($):</label>
-		<input type="number" id="amt" min="0" max="{{ money }}" value="0" required><br>
-		<label for="start">Choose the spinner's starting position.</label>
-		<input type="number" id="start" min="1" max="32" value="1" required><br>
-
-		<button type="submit">spin the wheel</button>
-	</form>
-
-	<br/><br/>
-	<div style="font-size: 1.5em">
-	RESULT: <b id="result">-</b>
-	</div>
-
-	<script>
-		document.getElementById('bet').addEventListener('submit', async (e) => {
-			e.preventDefault();
-
-			const amt = parseInt(document.getElementById('amt').value);
-			const start = parseInt(document.getElementById('start').value);
-			const result = document.getElementById('result');
-
-			const response = await fetch('/casino/spinner/spin?name={{ name }}', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({amt: amt, start: start})
-			});
-
-			const data = await response.json();
-
-			if (response.ok) {
-				document.getElementById('money').innerText = data.money;
-				result.textContent = data.result;
-			}
-		});
-
-	</script>
-</body>
-'''
 	name = get_name()
 	if name is None: return "missing username", 400, {"Content-Type": "text/plain"}
 
-	return render_template_string(HTML, name=name, money=money[name])
+	with open("spinner.html", 'r') as f:
+		return render_template_string(f.read(), name=name, money=money[name])
 
 @app.post('/casino/spinner/spin')
 def spinner_spin():
@@ -121,88 +64,77 @@ def spinner_spin():
 		"result": result
 	})
 
+@app.get("/casino/prediction")
+def prediction():
+	name = get_name()
+	if name is None: return "missing username", 400, {"Content-Type": "text/plain"}
+
+	with open("prediction.html", 'r') as f:
+		return render_template_string(f.read(), name=name, money=money[name])
+
+@app.post('/casino/prediction/spin')
+def prediction_spin():
+	data = request.get_json()
+
+	pred = data.get('pred')
+	prev = data.get('prev')
+
+	res = int(str(prev**3)[1:3])
+
+	name = get_name()
+	if name is None: return "missing username", 400, {"Content-Type": "text/plain"}
+
+	money[name] += (100-abs(pred-res))*10
+
+	return jsonify({
+		"money": money[name],
+		"res": res
+	})
 
 
-# @app.get("/ctf/intro")
-# def intro():
-# 	return '''\
-# backstory:
-# every club needs some form of attendance tracking. however, cs club is too sigma for a paltry google form.
+@app.get("/casino/roulette")
+def roulette():
+	name = get_name()
+	if name is None: return "missing username", 400, {"Content-Type": "text/plain"}
 
-# as such, the ever hardworking club execs finally finished their magnum opus: a functioning attendance-tracking website!
+	arr = ""
+	for _ in range(10):
+		arr += random.choice(['0', '1'])
 
-# however, they must have forgot that this is, indeed, the cs club.
-# as a mischevious club member, it is now your goal to take over the website and get the attendance HIGH SCORE!
+	with open("roulette.html", 'r') as f:
+		return render_template_string(f.read(), name=name, money=money[name], arr="")
 
-# (this is why we can't have nice things)
+@app.post('/casino/roulette/spin')
+def roulette_spin():
+	data = request.get_json()
 
-# the leaderboard is available at /ctf/leaderboard
+	amt = data.get('amt')
+	b = data.get('red')
+	arr = data.get('arr')
 
+	ai = int(arr, 2)
+	ai ^= (ai << 4)
+	ai ^= (ai >> 3)
+	ai ^= (ai << 7)
+	ai = ai%1024
 
-# your goal:
-# you must find all 5 numerical digits of the secret testing attendance code that lacks duplicate submission checking.
-# it will be obvious when a number received is a digit of the code.
+	narr = format(ai , '010b')
+	res = narr.count('1')
 
+	name = get_name()
+	if name is None: return "missing username", 400, {"Content-Type": "text/plain"}
+	
+	if res == b:
+		money[name] += amt
+	else:
+		money[name] -= amt
 
-# digits:
-# 0. logging in @ /ctf/login
-# 1. access control @ /ctf/access
-# 2. console.log in prod :( @ /ctf/logs
-# 3. hidden secrets @ /ctf/secrets
-# 4. cheating!? @ /ctf/cheating
+	return jsonify({
+		"money": money[name],
+		"narr": narr,
+		"res": res
+	})
 
-
-# finally, submit by sending a POST request to /ctf/submit with query parameters in the following format:
-# /ctf/submit?username=<whatever you want>&code=<attendance code>
-# (don't be afraid to dos attack this endpoint, it's running on my home laptop lmao)''', 200, {"Content-Type": "text/plain"}
-
-# @app.get("/ctf/login")
-# def login():
-# 	if request.args.get("password") == "VerySecurePassword":
-# 		return "The 0th (0-indexed) digit is: 9 (nine)!", 200, {"Content-Type": "text/plain"}
-# 	return '''\
-# test login: (REMOVE BEFORE PUSHING TO PROD)
-# password: YhubVhfxuhSdvvzrug (caesar cipher key: -3)
-
-# login by sending a GET request to this endpoint with query parameters in the following format:
-# /ctf/login?password=<password>''', 200, {"Content-Type": "text/plain"}
-
-# @app.get("/ctf/access")
-# def access():
-# 	if request.headers.get("admin", '0') == '1':
-# 		return "The 1st (0-indexed) digit is 9 (nine)!", 200, {"Content-Type": "text/plain"}
-# 	return "invalid credentials! is the 'admin' request header set to '1'?", 401, {"Content-Type": "text/plain"}
-
-# @app.get("/ctf/logs")
-# def logs():
-# 	return '''\
-# <script>console.log("The 2nd (0-indexed) digit is 1 (one)!")</script>
-# wow, finally a proper HTML page! i'm sure this could have no repercussions :3
-# ''', 200
-
-# @app.get("/ctf/secrets")
-# def secrets():
-# 	return send_file("jamjam.png", mimetype="image/png")
-
-# @app.get("/ctf/cheating")
-# def cheating():
-# 	return '''\
-# looks like you got bored and ended up asking someone for help with the last question.
-# however, in fear of the benevolent cs club execs discovering this vile treachery, they have encoded their response:
-# VGhlIDR0aCAoMC1pbmRleGVkKSBkaWdpdCBpcyA1IChmaXZlKSE=''', 200, {"Content-Type": "text/plain"}
-
-# @app.post("/ctf/submit")
-# def submit():
-# 	if not request.args.get("username"):
-# 		return "missing username", 400, {"Content-Type": "text/plain"}
-# 	global leaderboard_dict
-# 	if request.args.get("code") == "99115":
-# 		if request.args.get("username") in leaderboard_dict:
-# 			leaderboard_dict[request.args.get("username")] += 1
-# 		else:
-# 			leaderboard_dict[request.args.get("username")] = 1
-# 		return "submission successful!", 200, {"Content-Type": "text/plain"}
-# 	return "submission unsuccessful :(", 401, {"Content-Type": "text/plain"}
 
 @app.get("/casino/leaderboard")
 def leaderboard():

@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body>
+	logged in as <b id="name">{{ name }}</b>
+	<br/>
+	your ananthcoins: $<b id="money">{{ money }}</b>
+	<br/><br/>
+
+	welcome to the prediction machine! Pick a two digit number.<br/>
+	The closer your number, the more money you will get.<br/>
+    This doesn't use the middle square method, trust<br/>
+    (but you know what's better than the middle square method?)
+	<br/><br/>
+
+	<form id="bet">
+		<input type="number" id="pred" min="10" max="99" value="67" required><br>
+
+		<button type="submit">generate the number</button>
+	</form>
+
+	<br/><br/>
+	<div style="font-size: 1.5em">
+	RESULT: <b id="result">-</b>
+	</div>
+
+	<script>
+		var mny = {{ money }};
+        var bruh = Math.floor(Math.random() * 100);
+        const result = document.getElementById('result');
+        result.textContent = bruh;
+
+		document.getElementById('bet').addEventListener('submit', async (e) => {
+			e.preventDefault();
+
+			const pred = parseInt(document.getElementById('pred').value);
+
+			const response = await fetch('/casino/prediction/spin?name={{ name }}', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({pred: pred, prev: bruh})
+			});
+
+			const data = await response.json();
+
+			if (response.ok) {
+				document.getElementById('money').innerText = data.money;
+				mny = data.money;
+                bruh = data.res
+				result.textContent = bruh;
+			}
+		});
+
+	</script>
+</body>

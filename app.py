@@ -28,7 +28,8 @@ see /casino/leaderboard for uh, a leaderboard
 def get_name():
 	global money
 	name = request.args.get("name")
-	if not name:
+
+	if not name or not name.isalnum():
 		return None
 	if name not in money:
 		money[name] = 1000
@@ -38,7 +39,7 @@ def get_name():
 @app.get("/casino/spinner")
 def spinner():
 	name = get_name()
-	if name is None: return "missing username", 400, {"Content-Type": "text/plain"}
+	if name is None: return "invalid or missing username (must be alphanumeric)", 400, {"Content-Type": "text/plain"}
 
 	with open("spinner.html", 'r') as f:
 		return render_template_string(f.read(), name=name, money=money[name])
@@ -140,6 +141,15 @@ def roulette_spin():
 def leaderboard():
 	return f"LEADERBOARD:\n\n{'\n'.join([f'{idx}. {pair[0]} with {pair[1]} ananthcoins' for idx, pair in enumerate(sorted(money.items(), key=lambda item: item[1], reverse=True))])}", 200, {"Content-Type": "text/plain"}
 
+import atexit, json
+
+def save_dat():
+	with open("data.json", 'w') as f:
+		json.dump(money, f)
+
+atexit.register(save_dat)
+with open("data.json", 'r') as f:
+	money = json.load(f)
 
 if __name__ == "__main__":
-	app.run(host="0.0.0.0", port=8080)
+	app.run(host="0.0.0.0", port=8080, debug=False)
